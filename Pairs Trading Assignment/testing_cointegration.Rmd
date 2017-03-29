@@ -72,6 +72,10 @@ chart_Series(closing.prices[,1])
 add_TA(closing.prices[,4], on = 1)
 ```
 
+```{r}
+cor(closing.prices[,1], closing.prices[,4])
+```
+
 One thing I wanted to check was the impact of country of origin. IBA is listed on the NY Stock Exchange, but is a Mexican company. Perhaps this has to do with the USD/MXN exchange rate. 
 
 ```{r}
@@ -83,7 +87,7 @@ chart_Series(closing.prices[,1])
 add_TA(closing.prices[,4], on = 1)
 add_TA(USDMXN, on = 1)
 ```
-Perhaps adjusting for the currency exchange rate will reveal a different cointegration. 
+Perhaps adjusting for the currency exchange rate will reveal a different cointegration relationship. 
 
 ```{r}
 coint.adj <- merge.xts(USDMXN, closing.prices[,c(1,4)], join = 'inner')
@@ -101,3 +105,5 @@ add_TA(coint.adj$IBA.Close, on = 1)
 cointegration(coint.adj$ADM.Close, coint.adj$IBA.Close)
 ```
 This adjustment for exchange rate means the stocks are no longer cointegrated, therefore the pairs trading should go ahead with just the unadjusted market price. 
+
+
