@@ -1,0 +1,103 @@
+---
+title: "Pairs Trading Assignment - Testing Cointegration"
+output:
+  html_notebook: default
+  html_document: default
+---
+
+Selection criteria hypothesis: companies that are selling products which can be differentiated by marketing or other method are less likely to be mean reverting that companies that sell commodities (i.e. undifferentiable products). Using finviz.com's stock screener, I selected the top companies by market cap in the "Farm Products" industry (greater than $1B market cap).
+
+ADM - Archer-Daniels-Midland Company
+BG - Bunge Limited
+FDP - Fresh Del Monte Product Inc.
+IBA - Indusrias Bachoco, SAB de CV
+ANDE - The Andersons, Inc. 
+CVGW - Calavo Growers, Inc. 
+
+```{r}
+library(quantmod)
+library(tseries)
+library(dplyr)
+
+start <- as.Date("2010-01-01")
+end <- as.Date("2017-03-01")
+
+farm.product.symbols <- c("ADM", "BG", "FDP", "IBA", "ANDE", "CVGW")
+```
+
+```{r}
+getSymbols(farm.product.symbols, src = "yahoo", from = start, to = end)
+```
+
+```{r}
+# code cite: http://www.vikparuchuri.com/blog/time-series-cointegration-in-r/
+cointegration<-function(x,y){  
+  vals<-data.frame(x,y)  
+  beta<-coef(lm(vals[,2]~vals[,1]+0,data=vals))[1]  
+  (adf.test(vals[,2]-beta*vals[,1], alternative="stationary", k=0))$p.value
+} 
+
+cointegration(ADM$ADM.Close, BG$BG.Close)
+```
+Here, I create a matrix of closing prices. 
+```{r}
+closing.prices <- cbind(ADM$ADM.Close, BG$BG.Close, FDP$FDP.Close, IBA$IBA.Close, ANDE$ANDE.Close)
+```
+
+```{r}
+cointegration(closing.prices[,3], closing.prices[,2])
+```
+
+```{r}
+cols <- ncol(closing.prices)
+
+coint.pvalue <- NULL
+
+for(i in 1:cols){
+  for(j in 1:cols){
+    coint.iter <- cointegration(closing.prices[,i], closing.prices[,j])
+    coint.pvalue <- c(coint.pvalue, coint.iter)
+  }
+}
+```
+```{r}
+coint.pvalue.matrix <- matrix(coint.pvalue, ncol = cols, nrow = cols)
+print(coint.pvalue.matrix)
+```
+
+From this, it appears that ADM and IBA are cointegrated at a 95% p value. Ploting the two price series indicates that this is a reasonable conclusion.
+
+```{r}
+chart_Series(closing.prices[,1])
+add_TA(closing.prices[,4], on = 1)
+```
+
+One thing I wanted to check was the impact of country of origin. IBA is listed on the NY Stock Exchange, but is a Mexican company. Perhaps this has to do with the USD/MXN exchange rate. 
+
+```{r}
+#the data source is limited to the past five years
+getFX('USD/MXN', from = "2012-04-01", to = end)
+```
+```{r}
+chart_Series(closing.prices[,1])
+add_TA(closing.prices[,4], on = 1)
+add_TA(USDMXN, on = 1)
+```
+Perhaps adjusting for the currency exchange rate will reveal a different cointegration. 
+
+```{r}
+coint.adj <- merge.xts(USDMXN, closing.prices[,c(1,4)], join = 'inner')
+
+coint.adj$USD.MXN <- coint.adj$USD.MXN / coint.adj$USD.MXN[[1]]
+
+coint.adj$IBA.Close <- coint.adj$IBA.Close / coint.adj$USD.MXN
+```
+
+```{r}
+chart_Series(coint.adj$ADM.Close)
+add_TA(coint.adj$IBA.Close, on = 1)
+```
+```{r}
+cointegration(coint.adj$ADM.Close, coint.adj$IBA.Close)
+```
+This adjustment for exchange rate means the stocks are no longer cointegrated, therefore the pairs trading should go ahead with just the unadjusted market price. 
