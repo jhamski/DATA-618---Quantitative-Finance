@@ -31,10 +31,13 @@ getSymbols(farm.product.symbols, src = "yahoo", from = start, to = end)
 
 ```{r}
 # code cite: http://www.vikparuchuri.com/blog/time-series-cointegration-in-r/
+# for background on why this function tests for cointegration via the Dicky-Fuller test, see:
+# http://quantdevel.com/public/testForCoint.html
+
 cointegration<-function(x,y){  
-  vals<-data.frame(x,y)  
-  beta<-coef(lm(vals[,2]~vals[,1]+0,data=vals))[1]  
-  (adf.test(vals[,2]-beta*vals[,1], alternative="stationary", k=0))$p.value
+  vals <- data.frame(x,y)  
+  beta <- coef(lm(vals[,2] ~ vals[,1] + 0, data = vals))[1]  
+  (adf.test(vals[,2] - beta*vals[,1], alternative = "stationary", k = 0))$p.value
 } 
 
 cointegration(ADM$ADM.Close, BG$BG.Close)
